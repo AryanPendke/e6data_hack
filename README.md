@@ -1,6 +1,6 @@
 # Agentic Evaluation Framework
 
-A scalable backend system for evaluating AI agent responses across 5 dimensions using a master-worker architecture with Redis queues and MongoDB storage.
+A full-stack application for evaluating AI agent responses across 5 dimensions using a scalable master-worker architecture with React frontend, Node.js backend, and Python evaluation workers.
 
 ## Overview
 
@@ -14,62 +14,176 @@ Evaluates AI responses on:
 ## Architecture
 
 ```
-Upload → Redis Queue → Master Orchestrator → 5 Dimension Workers → Results Collection → MongoDB
+React Frontend → Node.js API → Redis Queue → Master Orchestrator → 5 Python Workers → MongoDB
 ```
 
+- **React Frontend**: User interface for file upload and results visualization
 - **Node.js Backend**: REST API with Express
 - **Python Workers**: ML-based evaluation engines
 - **Redis**: Task queue management
 - **MongoDB**: Data persistence
 
-## Quick Start
+## Project Structure
 
-### Prerequisites
+```
+project-root/
+├── agentic-eval-frontend/          # React frontend application
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── ...
+├── agentic-eval-backend/           # Backend services
+│   ├── node-backend/               # Node.js API server
+│   │   ├── src/
+│   │   │   ├── api/
+│   │   │   ├── db/
+│   │   │   ├── queue/
+│   │   │   └── utils/
+│   │   ├── package.json
+│   │   └── .env
+│   ├── python-workers/             # Python evaluation workers
+│   │   ├── shared/
+│   │   ├── accuracy_worker.py
+│   │   ├── coherence_worker.py
+│   │   ├── hallucination_worker.py
+│   │   ├── assumption_worker.py
+│   │   ├── instruction_worker.py
+│   │   └── requirements.txt
+│   └── redis-windows.zip           # Redis for Windows
+└── README.md
+```
+
+## Prerequisites
 
 - Node.js 14+
 - Python 3.x
-- MongoDB
-- Redis
-- Docker (optional)
+- MongoDB (MongoDB Compass recommended, or MongoDB Atlas)
+- Redis (included in repository for Windows users)
 
-### Installation
+## Installation & Setup
 
-1. **Clone and install dependencies**
+### 1. Clone Repository
 ```bash
 git clone <repository>
-cd agentic-eval-backend
+cd project-root
+```
+
+### 2. Install Frontend Dependencies
+```bash
+cd agentic-eval-frontend
 npm install
-pip install -r python-workers/requirements.txt
+cd ..
 ```
 
-2. **Configure environment**
+### 3. Install Backend Dependencies
 ```bash
+cd agentic-eval-backend/node-backend
+npm install
+cd ..
+```
+
+### 4. Install Python Dependencies
+```bash
+cd python-workers
+pip install -r requirements.txt
+cd ..
+```
+
+### 5. Setup Database Services
+
+#### MongoDB Setup
+- **Option 1**: Install MongoDB Compass for local development
+- **Option 2**: Create MongoDB Atlas account for cloud database
+
+#### Redis Setup
+- **Linux/Mac**: Install Redis via package manager
+  ```bash
+  # Ubuntu/Debian
+  sudo apt install redis-server
+  
+  # macOS
+  brew install redis
+  ```
+
+- **Windows**: Use the provided Redis in repository
+  ```bash
+  # Extract the redis-windows.zip file from agentic-eval-backend folder
+  cd agentic-eval-backend
+  # Extract redis-windows.zip to get redis-server.exe and redis-cli.exe
+  # The zip contains a complete Redis installation for Windows
+  ```
+
+### 6. Configure Backend Environment
+```bash
+cd node-backend
 cp .env.example .env
-# Edit .env with your database URLs
+# Edit .env with your database URLs and settings
 ```
 
-3. **Start services**
+Example `.env` configuration:
 ```bash
-# Start MongoDB and Redis
-sudo systemctl start mongodb redis
+# Database (using MongoDB Compass locally)
+MONGODB_URI=mongodb://localhost:27017/agentic_eval
+# Or for MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/agentic_eval
 
-# Start the application
+# Redis (local installation)
+REDIS_URL=redis://localhost:6379
+
+# Server
+PORT=3001
+NODE_ENV=development
+
+# Processing
+MAX_CONCURRENT_WORKERS=6
+BATCH_SIZE=100
+PROCESSING_TIMEOUT=30000
+
+# Python
+PYTHON_EXECUTABLE_PATH=/usr/bin/python3
+```
+
+### 7. Start Database Services
+```bash
+# For Linux/Mac users:
+sudo systemctl start mongodb redis
+# Or: brew services start redis (macOS)
+
+# For Windows users:
+# 1. Start MongoDB Compass and connect to local instance
+# 2. Navigate to extracted Redis folder and run: redis-server.exe
+# 3. Or use MongoDB Atlas with appropriate connection string in .env
+```
+
+### 8. Start Backend Server
+```bash
+cd agentic-eval-backend/node-backend
 npm start
 ```
 
-**OR use Docker:**
+### 9. Start Frontend (in a new terminal)
 ```bash
-docker-compose up -d
+cd agentic-eval-frontend
+npm start
 ```
 
-4. **Verify installation**
-```bash
-curl http://localhost:3001/api/status/system
-```
+### 10. Verify Installation
+- Backend API: http://localhost:3001/api/status/system
+- Frontend App: http://localhost:3000
 
 ## Usage
 
-### 1. Prepare Data
+### Web Interface
+
+1. Open http://localhost:3000 in your browser
+2. Upload your evaluation data (JSON or CSV format)
+3. Monitor processing progress in real-time
+4. View results and agent rankings
+5. Export results for further analysis
+
+### API Usage
+
+#### 1. Prepare Data
 
 Create JSON file with evaluation data:
 ```json
@@ -84,41 +198,24 @@ Create JSON file with evaluation data:
 ]
 ```
 
-### 2. Upload and Process
+#### 2. Upload via API
 
 ```bash
-# Validate data format
-curl -X POST http://localhost:3001/api/upload/validate \
-  -H "Content-Type: application/json" \
-  -d @evaluation_data.json
-
-# Upload for evaluation
 curl -X POST http://localhost:3001/api/upload/upload \
   -H "Content-Type: application/json" \
   -d @evaluation_data.json
 ```
 
-### 3. Monitor Progress
+#### 3. Monitor Progress
 
 ```bash
-# Check batch status
 curl http://localhost:3001/api/status/batch/{batch_id}
-
-# Real-time updates via Server-Sent Events
-curl http://localhost:3001/api/status/stream/{batch_id}
 ```
 
-### 4. Retrieve Results
+#### 4. Get Results
 
 ```bash
-# Get detailed results
 curl http://localhost:3001/api/results/batch/{batch_id}
-
-# Get agent rankings
-curl http://localhost:3001/api/results/leaderboard/{batch_id}
-
-# Export results
-curl http://localhost:3001/api/results/export/{batch_id}
 ```
 
 ## API Endpoints
@@ -152,29 +249,17 @@ curl http://localhost:3001/api/results/export/{batch_id}
 - `reference`: Reference answer for accuracy comparison
 - `metadata`: Additional structured data
 
-### Example Response
-```json
-{
-  "agent_id": "gpt-4",
-  "scores": {
-    "instruction": 0.85,
-    "hallucination": 0.90,
-    "assumption": 0.95,
-    "coherence": 0.80,
-    "accuracy": 0.75
-  },
-  "final_score": 0.835,
-  "processing_time_ms": 245
-}
-```
-
 ## Configuration
 
-Key environment variables in `.env`:
+### Backend Configuration (`.env`)
 
 ```bash
-# Database connections
+# Database connections (MongoDB Compass locally)
 MONGODB_URI=mongodb://localhost:27017/agentic_eval
+# Or for MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/agentic_eval
+
+# Redis (local installation from provided zip)
 REDIS_URL=redis://localhost:6379
 
 # Server settings
@@ -190,32 +275,90 @@ PROCESSING_TIMEOUT=30000
 PYTHON_EXECUTABLE_PATH=/usr/bin/python3
 ```
 
+### Frontend Configuration
+
+The frontend automatically connects to the backend API at `http://localhost:3001`. To change this:
+
+1. Update the API base URL in your frontend configuration
+2. Ensure CORS is properly configured in the backend
+
+## Development
+
+### Running in Development Mode
+
+**Backend:**
+```bash
+cd agentic-eval-backend/node-backend
+npm run dev
+```
+
+**Frontend:**
+```bash
+cd agentic-eval-frontend
+npm start
+```
+
+### Building for Production
+
+**Frontend:**
+```bash
+cd agentic-eval-frontend
+npm run build
+```
+
+**Backend:**
+```bash
+cd agentic-eval-backend/node-backend
+npm run build
+```
+
 ## Evaluation Dimensions
 
-### Accuracy (Word overlap + N-gram + Fact extraction)
-- Compares response against reference answer
-- Extracts key facts using regex patterns
-- Jaccard similarity for vocabulary overlap
+### Accuracy
+- Compares response against reference answer using word overlap, n-grams, and fact extraction
+- Score: 0.0 - 1.0 (higher is better)
 
-### Coherence (Flow + Transitions + Repetition)
-- Analyzes sentence connectivity
-- Detects transition words and logical flow
-- Penalizes excessive repetition
+### Coherence
+- Analyzes logical flow, transitions, and repetition
+- Score: 0.0 - 1.0 (higher is better)
 
-### Hallucination (Claim verification + Pattern detection)
-- Extracts factual claims from text
-- Verifies claims against provided context
-- Detects suspicious precision and overconfidence
+### Hallucination
+- Detects unsupported claims and overconfident assertions
+- Score: 0.0 - 1.0 (higher means less hallucination)
 
-### Assumption (Pattern matching + Context verification)
-- Identifies assumptive language patterns
-- Checks assumptions against available context
-- Flags unwarranted generalizations
+### Assumption
+- Identifies unwarranted assumptions and generalizations
+- Score: 0.0 - 1.0 (higher means fewer assumptions)
 
-### Instruction Following (Length + Format + Relevance)
-- Evaluates word count compliance
-- Checks format requirements (bullets, paragraphs)
-- Measures content relevance to prompt
+### Instruction Following
+- Evaluates compliance with prompt requirements (length, format, relevance)
+- Score: 0.0 - 1.0 (higher is better)
+
+## File Limits
+
+- **Max file size**: 50MB
+- **Max responses per batch**: 10,000
+- **Supported formats**: CSV, JSON
+- **Processing timeout**: 30 seconds (configurable)
+
+## Troubleshooting
+
+### Backend won't start
+- Check if MongoDB and Redis are running
+  - **MongoDB**: Ensure MongoDB Compass is connected or Atlas URI is correct
+  - **Redis**: Ensure redis-server.exe is running (Windows) or Redis service is active
+- Verify Python path in `.env` file
+- Check if port 3001 is available
+
+### Frontend can't connect to backend
+- Ensure backend is running on port 3001
+- Check CORS configuration
+- Verify API base URL in frontend config
+
+### Workers not processing
+- Check Python dependencies are installed
+- Verify Redis connection
+- Check worker status: `curl http://localhost:3001/api/status/workers`
 
 ## Integration Example
 
@@ -254,96 +397,6 @@ const client = new EvaluationClient();
 const results = await client.evaluate(evaluationData);
 ```
 
-## Troubleshooting
-
-### Common Issues
-
-**Python workers not executing:**
-```bash
-# Check Python path
-which python3
-# Update PYTHON_EXECUTABLE_PATH in .env
-```
-
-**Redis connection failed:**
-```bash
-# Test Redis
-redis-cli ping
-# Restart if needed
-sudo systemctl restart redis
-```
-
-**Queue backup:**
-```bash
-# Check queue status
-curl http://localhost:3001/api/status/workers
-# Restart workers
-curl -X POST http://localhost:3001/api/status/workers/restart/all
-```
-
-**Database connection issues:**
-```bash
-# Check MongoDB
-sudo systemctl status mongodb
-# Test connection
-mongo --eval "db.adminCommand('ismaster')"
-```
-
-### Performance Tuning
-
-For high throughput:
-```bash
-MAX_CONCURRENT_WORKERS=10
-BATCH_SIZE=200
-PROCESSING_TIMEOUT=45000
-```
-
-For resource-constrained environments:
-```bash
-MAX_CONCURRENT_WORKERS=3
-BATCH_SIZE=25
-PROCESSING_TIMEOUT=90000
-```
-
-### Health Monitoring
-
-```bash
-# System health check
-curl http://localhost:3001/api/status/system
-
-# Worker status
-curl http://localhost:3001/api/status/workers
-
-# Queue depths
-redis-cli llen main_evaluation_tasks
-```
-
-## File Limits
-
-- **Max file size**: 50MB
-- **Max responses per batch**: 10,000
-- **Supported formats**: CSV, JSON
-- **Processing timeout**: 30 seconds (configurable)
-
-## Development
-
-### Running Tests
-```bash
-npm test
-python -m pytest python-workers/tests/
-```
-
-### Debug Mode
-```bash
-NODE_ENV=development DEBUG=evaluation:* npm start
-```
-
-### Adding Custom Workers
-1. Create new Python worker in `python-workers/`
-2. Follow existing worker interface pattern
-3. Add worker configuration to `config.js`
-4. Update dimension queue routing
-
 ## License
 
 [License information]
@@ -351,5 +404,4 @@ NODE_ENV=development DEBUG=evaluation:* npm start
 ## Support
 
 - **Issues**: [GitHub Issues URL]
-- **Documentation**: [Full documentation URL]
-- **API Reference**: `GET /api/upload/formats` for current API spec
+- **Documentation**: See documentation files for detailed technical reference
